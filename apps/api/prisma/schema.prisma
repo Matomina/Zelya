@@ -1,0 +1,320 @@
+// ─── Zelya — Prisma Schema ───────────────────────────────────────────────────
+// PostgreSQL + Prisma ORM
+// TODO: Review with legal counsel before production — ARCOM/RGPD compliance
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  CREATOR
+  MODERATOR
+  ADMIN
+}
+
+enum Gender {
+  FEMALE
+  MALE
+  COUPLE
+  TRANS
+  OTHER
+}
+
+enum ProfileStatus {
+  PENDING      // Awaiting moderation
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  ILLEGAL
+  MINOR
+  IDENTITY_THEFT
+  NON_CONSENT
+  HARASSMENT
+  SPAM
+  OTHER
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum MediaVisibility {
+  PUBLIC
+  SUBSCRIBERS
+  PRIVATE
+}
+
+enum ConsentType {
+  TERMS
+  PRIVACY
+  MARKETING
+  COOKIES
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  emailVerified   Boolean   @default(false)
+  passwordHash    String
+  pseudo          String    @unique
+  role            Role      @default(USER)
+  isActive        Boolean   @default(true)
+  isBanned        Boolean   @default(false)
+
+  // Age verification — TODO: ARCOM-certified provider required in production
+  dateOfBirth     DateTime?
+  isAgeVerified   Boolean   @default(false)
+  ageVerifiedAt   DateTime?
+  ageVerifiedBy   String?   // Provider name (placeholder)
+
+  // Relations
+  profile         Profile?
+  consents        Consent[]
+  reports         Report[]   @relation("ReporterReports")
+  sentMessages    Message[]  @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  favorites       Favorite[]
+  reviews         Review[]   @relation("ReviewAuthor")
+  sessions        Session[]
+  refreshTokens   RefreshToken[]
+  auditLogs       AuditLog[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // Soft delete — RGPD
+
+  @@map("users")
+}
+
+// ─── Profiles ────────────────────────────────────────────────────────────────
+
+model Profile {
+  id          String        @id @default(uuid())
+  userId      String        @unique
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  alias       String        @unique
+  bio         String?       @db.Text
+  gender      Gender
+  age         Int
+  city        String
+  department  String
+  region      String
+  isOnline    Boolean       @default(false)
+  lastSeenAt  DateTime      @default(now())
+  status      ProfileStatus @default(PENDING)
+
+  isVerified  Boolean       @default(false)
+  verifiedAt  DateTime?
+  isPremium   Boolean       @default(false)
+
+  // TODO: avatar stored in object storage (S3/Cloudflare R2) — not in DB
+  avatarKey   String?
+
+  tags        Tag[]         @relation("ProfileTags")
+  media       Media[]
+  reviews     Review[]      @relation("ProfileReviews")
+  favorites   Favorite[]
+  reports     Report[]      @relation("ReportedProfile")
+
+  rating      Float         @default(0)
+  reviewCount Int           @default(0)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("profiles")
+}
+
+// ─── Tags ─────────────────────────────────────────────────────────────────────
+
+model Tag {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  profiles Profile[] @relation("ProfileTags")
+
+  @@map("tags")
+}
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+model Media {
+  id          String          @id @default(uuid())
+  profileId   String
+  profile     Profile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  type        MediaType
+  // TODO: Store in object storage — key = S3/R2 path
+  storageKey  String
+  visibility  MediaVisibility @default(PUBLIC)
+  isApproved  Boolean         @default(false)
+  approvedAt  DateTime?
+  approvedBy  String?
+
+  // IMPORTANT: All media must be verified for age + consent before approval
+  hasConsent  Boolean         @default(false)
+
+  createdAt   DateTime        @default(now())
+
+  @@map("media")
+}
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+
+model Message {
+  id          String    @id @default(uuid())
+  senderId    String
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId  String
+  receiver    User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  content     String    @db.Text
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  isDeleted   Boolean   @default(false)
+
+  createdAt   DateTime  @default(now())
+
+  @@map("messages")
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation("ProfileReviews", fields: [profileId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("ReviewAuthor", fields: [authorId], references: [id])
+
+  rating    Int      // 1–5
+  comment   String?  @db.Text
+  isVisible Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, authorId]) // One review per user per profile
+  @@map("reviews")
+}
+
+// ─── Favorites ────────────────────────────────────────────────────────────────
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, profileId])
+  @@map("favorites")
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  reporter    User         @relation("ReporterReports", fields: [reporterId], references: [id])
+  profileId   String
+  profile     Profile      @relation("ReportedProfile", fields: [profileId], references: [id])
+
+  reason      ReportReason
+  details     String?      @db.Text
+  status      ReportStatus @default(OPEN)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+
+  createdAt   DateTime     @default(now())
+
+  @@map("reports")
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  userAgent String?
+  ipAddress String?
+  isValid   Boolean  @default(true)
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ─── Consents (RGPD) ─────────────────────────────────────────────────────────
+
+model Consent {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        ConsentType
+  accepted    Boolean
+  ipAddress   String?
+  userAgent   String?
+  version     String      // Document version at time of consent
+
+  createdAt   DateTime    @default(now())
+
+  @@map("consents")
+}
+
+// ─── Audit Logs (RGPD + security) ────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g. "login", "profile.update", "media.upload"
+  entity    String?  // e.g. "Profile", "Media"
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}

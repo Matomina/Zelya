@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ──────────────────────────────────────────────
+  # API NestJS — lint + build + tests (+ postgres)
+  # ──────────────────────────────────────────────
+  api:
+    name: API (NestJS)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: zelya
+          POSTGRES_PASSWORD: zelya_test
+          POSTGRES_DB: zelya_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    env:
+      DATABASE_URL: postgresql://zelya:zelya_test@localhost:5432/zelya_test
+      JWT_SECRET: ci_jwt_secret_32_characters_minimum
+      JWT_REFRESH_SECRET: ci_refresh_secret_32chars_minimum_ok
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Lint (strict — no auto-fix)
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test -- --passWithNoTests --forceExit --coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Frontend Web — lint + type-check + build
+  # ──────────────────────────────────────────────
+  web:
+    name: Web (React + Vite)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check + Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Admin — lint + type-check + build
+  # ──────────────────────────────────────────────
+  admin:
+    name: Admin (React + Vite)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-dist
+          path: apps/admin/dist/
+          retention-days: 7
+
+  # ──────────────────────────────────────────────
+  # Statut global — requis pour protéger main
+  # ──────────────────────────────────────────────
+  all-green:
+    name: All checks passed
+    runs-on: ubuntu-latest
+    needs: [api, web, admin]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.api.result }}" != "success" || \
+                "${{ needs.web.result }}" != "success" || \
+                "${{ needs.admin.result }}" != "success" ]]; then
+            echo "One or more jobs failed."
+            exit 1
+          fi
+          echo "All checks passed."

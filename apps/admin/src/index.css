@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-z-bg text-z-text font-sans antialiased;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0D0C1E; }
+  ::-webkit-scrollbar-thumb { background: #8B5CF6; border-radius: 3px; }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-z-sub transition-all duration-150
+           hover:bg-z-raised hover:text-z-text;
+  }
+  .sidebar-link.active {
+    @apply bg-z-violet/15 text-z-violet-light;
+  }
+  .admin-card {
+    @apply bg-z-card border border-z-border rounded-xl p-5;
+  }
+  .btn-primary {
+    @apply bg-z-violet hover:bg-z-violet/90 text-white font-medium px-4 py-2 rounded-lg
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply bg-z-danger/10 hover:bg-z-danger/20 text-z-danger border border-z-danger/30
+           font-medium px-4 py-2 rounded-lg transition-all duration-150;
+  }
+  .badge-status-open   { @apply bg-amber-500/15 text-amber-400 border border-amber-500/25; }
+  .badge-status-active { @apply bg-z-success/15 text-z-success border border-z-success/25; }
+  .badge-status-banned { @apply bg-z-danger/15 text-z-danger border border-z-danger/25; }
+}

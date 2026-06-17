@@ -1,0 +1,30 @@
+# Normalize line endings for all text files
+* text=auto eol=lf
+
+# Force LF for scripts and config
+*.sh text eol=lf
+*.ps1 text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.prisma text eol=lf
+*.sql text eol=lf
+*.toml text eol=lf
+*.html text eol=lf
+
+# Binary files — no conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
