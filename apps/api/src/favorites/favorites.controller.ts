@@ -1,5 +1,5 @@
 import {
-  Controller, Post, Delete, Get, Param, Query,
+  Controller, Post, Get, Param, Query,
   UseGuards, Req, ParseIntPipe, DefaultValuePipe,
 } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger'

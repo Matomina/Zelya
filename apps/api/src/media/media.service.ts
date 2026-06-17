@@ -15,7 +15,7 @@
  * 7. Limiter la taille : photos < 10 MB, vidéos < 500 MB
  */
 import {
-  Injectable, NotFoundException, ForbiddenException, BadRequestException,
+  Injectable, NotFoundException, BadRequestException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 
