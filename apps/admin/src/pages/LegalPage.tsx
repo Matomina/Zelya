@@ -14,7 +14,7 @@ const items: ComplianceItem[] = [
   { label: 'Bannière cookies (CNIL)', status: 'done', detail: 'Implémentée avec consentement explicite et catégories' },
   { label: 'Modèle de consentement DB', status: 'done', detail: 'Table Consent en base — log de chaque consentement avec version et IP' },
   { label: 'Suppression soft (RGPD)', status: 'done', detail: 'Soft delete avec anonymisation email/pseudo' },
-  { label: 'Vérification d'âge ARCOM', status: 'todo', detail: 'Non implémentée — prestataire certifié requis (Yoti, IDnow, VerifyMy)', link: 'https://www.arcom.fr/nos-ressources/espace-juridique/les-textes-reglementaires/la-loi-du-30-juillet-2020' },
+  { label: "Vérification d'âge ARCOM", status: 'todo', detail: 'Non implémentée — prestataire certifié requis (Yoti, IDnow, VerifyMy)', link: 'https://www.arcom.fr/nos-ressources/espace-juridique/les-textes-reglementaires/la-loi-du-30-juillet-2020' },
   { label: 'Audit logs sécurité', status: 'done', detail: 'Table AuditLog — trace toutes les actions sensibles' },
   { label: 'Signalement de contenu', status: 'done', detail: 'Module reports — signalement par utilisateur + modération admin' },
   { label: 'Procédure de retrait LCEN', status: 'todo', detail: 'Formulaire de notification de contenu illicite à implémenter' },

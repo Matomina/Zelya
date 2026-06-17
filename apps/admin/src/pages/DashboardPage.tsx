@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
 import { Users, Shield, AlertTriangle, Eye } from 'lucide-react'
-import { api } from '@/lib/api'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, Ban, CheckCircle2, Trash2 } from 'lucide-react'
+import { Search, Ban, CheckCircle2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
